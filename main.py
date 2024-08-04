@@ -1,4 +1,6 @@
 import os
+import subprocess
+import sys
 
 import schedule
 from dotenv import load_dotenv
@@ -27,6 +29,9 @@ async def main():
 if __name__ == "__main__":
     # запуск бота
     logging.basicConfig(level=logging.INFO)
+    # Запуск скрипта инициализации базы данных
+    subprocess.run([sys.executable, "func/initialize_db.py"], check=True)
+
     asyncio.run(main())
     # запуск расписания
     schedule.every().hour.run(parsing_code())
