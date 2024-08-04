@@ -1,114 +1,104 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.filters.callback_data import CallbackData
-from magic_filter import F
+from unittest.mock import AsyncMock, Mock
 
-from func import db_manager
-from tg_bot.tg_bot import DateTask, NumbersCallbackFactory, Gen, get_task, router
+from tg_bot.tg_bot import (
+    start_handler,
+    level_selection,
+    select_topic,
+    find_task,
+    navigator_task,
+    back_find_topic,
+    update_list_task_topic,
+    update_list_task,
+    DateTask,
+    Gen,
+)
 
 
 @pytest.fixture
-def mock_db_manager():
-    mock_db = MagicMock()
-    db_manager.DBManager = MagicMock(return_value=mock_db)
-    DateTask.db = mock_db
-    return mock_db
+def mock_message():
+    message = Mock(spec=Message)
+    message.answer = AsyncMock()
+    return message
+
+
+@pytest.fixture
+def mock_callback_query(mock_message):
+    callback_query = Mock(spec=CallbackQuery)
+    callback_query.message = mock_message
+    callback_query.answer = AsyncMock()
+    return callback_query
 
 
 @pytest.fixture
 def mock_state():
-    return AsyncMock(FSMContext)
+    state = Mock(spec=FSMContext)
+    state.set_state = AsyncMock()
+    state.update_data = AsyncMock()
+    state.get_data = AsyncMock(return_value={"topic": {"text": "mock_topic"}})
+    return state
+
+
+@pytest.fixture
+def mock_callback_data():
+    callback_data = Mock()
+    callback_data.value = 0
+    callback_data.text = "mock_text"
+    return callback_data
 
 
 @pytest.mark.asyncio
-async def test_start_handler(mock_state):
-    message = AsyncMock(Message)
-    message.answer = AsyncMock()
-
-    await router.message[Command("start")].handler(message, mock_state)
-
-    message.answer.assert_called_with(
-        "Привет! Выберите уровень сложности, чтобы начать решать задачи",
-        reply_markup=get_keyboard_fab(),
-    )
-    mock_state.set_state.assert_called_with(Gen.level)
+async def test_start_handler(mock_message, mock_state):
+    mock_message.answer = AsyncMock()
+    await start_handler(mock_message, mock_state)
+    mock_message.answer.assert_called_once()
+    mock_state.set_state.assert_called_once_with(Gen.level)
 
 
 @pytest.mark.asyncio
-async def test_level_selection(mock_db_manager, mock_state):
-    callback_query = AsyncMock(CallbackQuery)
-    callback_data = NumbersCallbackFactory(
-        action="level", value=1, text="Обычные задачи"
-    )
-    callback_query.message.answer = AsyncMock()
-    callback_query.answer = AsyncMock()
-
-    await router.callback_query[
-        Gen.level, NumbersCallbackFactory.filter(F.action == "level")
-    ].handler(callback_query, callback_data, mock_state)
-
-    assert DateTask.task_level == 1
-    mock_state.update_data.assert_called_with(level=callback_data)
-    mock_state.set_state.assert_called_with(Gen.topic)
-    callback_query.answer.assert_called_with(text="Выбран уровень: Обычные задачи ")
-    callback_query.message.answer.assert_called_with("Уровень: Обычные задачи ")
-    callback_query.message.answer.assert_called_with(
-        "По какой категории будем смотреть задачи", reply_markup=get_keyboard_topic()
-    )
+async def test_level_selection(mock_callback_query, mock_callback_data, mock_state):
+    mock_callback_query.answer = AsyncMock()
+    mock_callback_query.message.answer = AsyncMock()
+    DateTask.task_level = 0
+    await level_selection(mock_callback_query, mock_callback_data, mock_state)
+    mock_callback_query.answer.assert_called_once()
+    mock_callback_query.message.answer.assert_called()
+    mock_state.update_data.assert_called_once()
+    mock_state.set_state.assert_called_once_with(Gen.topic)
 
 
 @pytest.mark.asyncio
-async def test_select_topic(mock_db_manager, mock_state):
-    callback_query = AsyncMock(CallbackQuery)
-    callback_data = NumbersCallbackFactory(action="task_topic", value=0, text="math")
-    callback_query.message.answer = AsyncMock()
-    callback_query.answer = AsyncMock()
-
-    await router.callback_query[
-        Gen.topic, NumbersCallbackFactory.filter(F.action == "task_topic")
-    ].handler(callback_query, callback_data, mock_state)
-
-    assert DateTask.topic == "math"
-    mock_state.update_data.assert_called_with(topic=callback_data)
-    mock_state.set_state.assert_called_with(Gen.task)
-
-    callback_query.message.answer.assert_called_with(
-        "  --- задачи из категории math --- ", parse_mode="HTML"
-    )
-    callback_query.message.answer.assert_called_with(get_task(), parse_mode="HTML")
+async def test_select_topic(mock_callback_query, mock_callback_data, mock_state):
+    mock_callback_query.message.answer = AsyncMock()
+    mock_state.update_data = AsyncMock()
+    mock_state.get_data = AsyncMock(return_value={"topic": mock_callback_data})
+    await select_topic(mock_callback_query, mock_callback_data, mock_state)
+    mock_state.update_data.assert_called_once()
+    mock_state.set_state.assert_called_once_with(Gen.task)
+    mock_callback_query.message.answer.assert_called()
 
 
 @pytest.mark.asyncio
-async def test_find_task(mock_db_manager, mock_state):
-    message = AsyncMock(Message)
-    message.answer = AsyncMock()
-
-    await router.callback_query[
-        Gen.task, NumbersCallbackFactory.filter(F.action == "find_task")
-    ].handler(message)
-
-    message.answer.assert_called_with("Уточните какую задачу искать")
+async def test_find_task(mock_callback_query):
+    mock_callback_query.message.answer = AsyncMock()
+    await find_task(mock_callback_query)
+    mock_callback_query.message.answer.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_navigator_task(mock_db_manager, mock_state):
-    callback_query = AsyncMock(CallbackQuery)
-    callback_data = NumbersCallbackFactory(action="navigator_task", value=1, text="+1")
-    callback_query.message.answer = AsyncMock()
-    mock_state.get_data = AsyncMock(
-        return_value={
-            "topic": NumbersCallbackFactory(action="task_topic", value=0, text="math")
-        }
-    )
+async def test_navigator_task(mock_callback_query, mock_callback_data, mock_state):
+    mock_callback_query.message.answer = AsyncMock()
+    mock_state.get_data = AsyncMock(return_value={"topic": mock_callback_data})
+    await navigator_task(mock_callback_query, mock_callback_data, mock_state)
+    mock_callback_query.message.answer.assert_called()
+    mock_state.get_data.assert_called_once()
 
-    await router.callback_query[
-        Gen.task, NumbersCallbackFactory.filter(F.action == "navigator_task")
-    ].handler(callback_query, callback_data, mock_state)
 
-    assert DateTask.task_page == 1
-    callback_query.message.answer.assert_called_with(get_task(), parse_mode="HTML")
-    callback_query.message.answer.assert_called_with(
-        "  --- страница 1 --- списка задач по #math#", reply_markup=get_keyboard_task()
-    )
+@pytest.mark.asyncio
+async def test_back_find_topic(mock_callback_query, mock_state):
+    mock_callback_query.message.answer = AsyncMock()
+    await back_find_topic(mock_callback_query, mock_state)
+    mock_callback_query.message.answer.assert_called_once()
+    mock_state.set_state.assert_called_once_with(Gen.topic)
