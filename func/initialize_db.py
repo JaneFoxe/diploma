@@ -17,7 +17,8 @@ def initialize_db():
     conn.autocommit = True
 
     with conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS public.problem (
                 id_problem VARCHAR PRIMARY KEY,
                 name VARCHAR NOT NULL,
@@ -28,15 +29,18 @@ def initialize_db():
                 tags TEXT[],
                 solvedCount INTEGER DEFAULT 0
             );
-        """)
+        """
+        )
 
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS public.problem_tags (
                 id_problem VARCHAR NOT NULL,
                 tag VARCHAR NOT NULL,
                 FOREIGN KEY (id_problem) REFERENCES public.problem (id_problem)
             );
-        """)
+        """
+        )
 
     conn.close()
 
