@@ -13,11 +13,11 @@ from func.problem_parser import parsing_code
 from tg_bot.tg_bot import router
 
 
-load_dotenv('.env')
+load_dotenv(".env")
 
 
 async def main():
-    bot = Bot(token=os.getenv('BOT_TG_TOKEN'), parse_mode=ParseMode.HTML)
+    bot = Bot(token=os.getenv("BOT_TG_TOKEN"), parse_mode=ParseMode.HTML)
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
@@ -30,4 +30,3 @@ if __name__ == "__main__":
     asyncio.run(main())
     # запуск расписания
     schedule.every().hour.run(parsing_code())
-

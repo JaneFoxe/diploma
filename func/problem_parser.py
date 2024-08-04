@@ -12,25 +12,38 @@ def parsing_code():
 
     # обновляем в базе задачи
     for problem in problems:
-        if 'rating' in problem:
-            rating = problem['rating']
+        if "rating" in problem:
+            rating = problem["rating"]
         else:
             rating = 0
 
-        db.db_update_problem(problem['contestId'], problem['index'], problem['name'], rating, problem["tags"])
+        db.db_update_problem(
+            problem["contestId"],
+            problem["index"],
+            problem["name"],
+            rating,
+            problem["tags"],
+        )
 
     # добавляем в базу задачи
     for problem in problems:
-        if 'rating' in problem:
-            rating = problem['rating']
+        if "rating" in problem:
+            rating = problem["rating"]
         else:
             rating = 0
         url = f"https://codeforces.com/problemset/problem/{problem['contestId']}/{problem['index']}"
 
-        db.db_add_problem(problem['contestId'], problem['index'], problem['name'], url, rating, problem["tags"])
+        db.db_add_problem(
+            problem["contestId"],
+            problem["index"],
+            problem["name"],
+            url,
+            rating,
+            problem["tags"],
+        )
         for tag in problem["tags"]:
-            db.db_add_tag(problem['contestId'], problem['index'], tag)
+            db.db_add_tag(problem["contestId"], problem["index"], tag)
 
     # обновляем задачи
     for ps in problemstatistics:
-        db.db_add_problem_solvedcount(ps['contestId'], ps['index'], ps['solvedCount'])
+        db.db_add_problem_solvedcount(ps["contestId"], ps["index"], ps["solvedCount"])
